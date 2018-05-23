@@ -37,7 +37,7 @@ train_data = x_valid
 train_data = train_data.drop(['id','comment_text'],axis=1)
 train_data = train_data.values
 
-print mean_square_error(train_data, preds)
+print(mean_squared_error(train_data, preds))
 
 #preds = np.zeros((len(train), len(labels)))
 #for i, j in enumerate(labels):
