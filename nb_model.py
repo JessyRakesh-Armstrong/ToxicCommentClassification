@@ -4,49 +4,67 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import mean_squared_error
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
+import csv
 
-labels = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
-train = pd.read_csv('train.csv')
-
-x_train, x_valid = train_test_split(train, test_size=.3)
-vec=TfidfVectorizer()
-tfidf_vectors = vec.fit_transform(x_train['comment_text'])
-validation_vectors = vec.transform(x_valid['comment_text'])
-x = tfidf_vectors
-y = validation_vectors
-
+# Helper function to calculate log count ratio
 def pr(y_i, y):
-    p = x[y==y_i].sum(0)
+    p = train_vectors[y==y_i].sum(0)
     return (p+1) / ((y==y_i).sum()+1)
 
+# Create fitted SVM models using NB features
 def get_mdl(y):
     y = y.values
     r = np.log(pr(1,y) / pr(0,y))
     m = LogisticRegression(C=4, dual=True)
-    x_nb = x.multiply(r)
+    x_nb = train_vectors.multiply(r)
     return m.fit(x_nb, y), r
 
-preds = np.zeros((len(x_valid), len(labels)))
+####Create labels and load CSV files into pandas DataFrames ###
+labels = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
+train = pd.read_csv('train.csv')
+test = pd.read_csv('newMerged.csv')
+x_train = train
+x_test = test
+
+### td-idf word counts ###
+vec=TfidfVectorizer()
+train_vectors = vec.fit_transform(x_train['comment_text'])
+test_vectors = vec.transform(x_test['comment_text'])
+
+#### For each label, create NB-SVM model and predict using test data features ###
+### into preds array ###
+preds = np.zeros((len(x_test), len(labels)))
 for i,j in enumerate(labels):
     print('fit',j)
     m,r = get_mdl(x_train[j])
-    preds[:,i] = m.predict_proba(validation_vectors.multiply(r))[:,1]
+    preds[:,i] = m.predict_proba(test_vectors.multiply(r))[:,1]
 
-train_data = x_valid
-train_data = train_data.drop(['id','comment_text'],axis=1)
-train_data = train_data.values
+### Save results to CSV files ###
+# preds, continuous values
+new = pd.DataFrame(data=preds, columns=['toxic','severe_toxic','obscene','threat',
+                                        'insult','identity_hate'])
+new.to_csv("preds.csv", encoding='utf-8', quoting=csv.QUOTE_NONNUMERIC, index=False)
 
-print(mean_squared_error(train_data, preds))
+# classified_preds, classification with threshold .5
+classified_preds = np.zeros((len(x_test), len(labels)))
+for row in range(len(preds)):
+    for col in range(6):
+        if preds[row][col] > .5:
+            classified_preds[row][col] = 1
+        else:
+            classified_preds[row][col] = 0
+new = pd.DataFrame(data=classified_preds, columns=['toxic','severe_toxic','obscene','threat',
+                                        'insult','identity_hate'])
+new.to_csv("classified_preds.csv", encoding='utf-8', quoting=csv.QUOTE_NONNUMERIC, index=False)
 
-#preds = np.zeros((len(train), len(labels)))
-#for i, j in enumerate(labels):
-#    print('fit', j)
-#    m,r = get_mdl(train[j])
-#    preds[:,i] = m.predict_proba(x.multiply(r))[:,1]
 
-#train_data = train
-#train_data.drop(['id','comment_text'], axis=1)
-#train_data = train_data.values
-
-#print explained_variance_score(train_data, preds)
+### Accuracy outputs ###
+test_data = x_test.drop(['id','comment_text'],axis=1)
+test_data = test_data.values
+acc = accuracy_score(test_data, classified_preds)
+mse = mean_squared_error(test_data, preds)
+print('__________NB-SVM metrics__________')
+print('Accuracy = ' + str(acc))
+print('Mean square error = ' + str(mse))
