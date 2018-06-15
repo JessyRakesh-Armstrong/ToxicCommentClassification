@@ -1,12 +1,16 @@
 import pandas as pd
 import numpy as np
+from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
-from sklearn.metrics import mean_squared_error
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 import csv
+import sys
+import pickle
 
 # Helper function to calculate log count ratio
 def pr(y_i, y):
@@ -23,29 +27,24 @@ def get_mdl(y):
 
 ####Create labels and load CSV files into pandas DataFrames ###
 labels = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
-train = pd.read_csv('train.csv')
-test = pd.read_csv('newMerged.csv')
-x_train = train
-x_test = test
+train = pd.read_csv(sys.argv[1])
+x_train, x_test = train_test_split(train, test_size=.3, random_state=5)
 
 ### td-idf word counts ###
-vec=TfidfVectorizer()
-train_vectors = vec.fit_transform(x_train['comment_text'])
-test_vectors = vec.transform(x_test['comment_text'])
+vec = TfidfVectorizer()
+train_vectors = vec.fit_transform(x_train['comment_text'].values.astype('U'))
+test_vectors = vec.transform(x_test['comment_text'].values.astype('U'))
 
 #### For each label, create NB-SVM model and predict using test data features ###
 ### into preds array ###
+saved_models = list()
 preds = np.zeros((len(x_test), len(labels)))
 for i,j in enumerate(labels):
     print('fit',j)
     m,r = get_mdl(x_train[j])
+    s = pickle.dumps(m)
+    saved_models.append(s)
     preds[:,i] = m.predict_proba(test_vectors.multiply(r))[:,1]
-
-### Save results to CSV files ###
-# preds, continuous values
-new = pd.DataFrame(data=preds, columns=['toxic','severe_toxic','obscene','threat',
-                                        'insult','identity_hate'])
-new.to_csv("preds.csv", encoding='utf-8', quoting=csv.QUOTE_NONNUMERIC, index=False)
 
 # classified_preds, classification with threshold .5
 classified_preds = np.zeros((len(x_test), len(labels)))
@@ -55,16 +54,14 @@ for row in range(len(preds)):
             classified_preds[row][col] = 1
         else:
             classified_preds[row][col] = 0
-new = pd.DataFrame(data=classified_preds, columns=['toxic','severe_toxic','obscene','threat',
-                                        'insult','identity_hate'])
-new.to_csv("classified_preds.csv", encoding='utf-8', quoting=csv.QUOTE_NONNUMERIC, index=False)
-
 
 ### Accuracy outputs ###
 test_data = x_test.drop(['id','comment_text'],axis=1)
 test_data = test_data.values
 acc = accuracy_score(test_data, classified_preds)
-mse = mean_squared_error(test_data, preds)
+mse = mean_squared_error(test_data, classified_preds)
+roc = roc_auc_score(test_data, classified_preds)
 print('__________NB-SVM metrics__________')
 print('Accuracy = ' + str(acc))
 print('Mean square error = ' + str(mse))
+print('ROC score = ' + str(roc))

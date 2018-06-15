@@ -9,6 +9,7 @@ from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 import csv
 import sys
+import pickle
 
 # Helper function to calculate log count ratio
 def pr(y_i, y):
@@ -31,16 +32,19 @@ x_train = train
 x_test = test
 
 ### td-idf word counts ###
-vec = TfidfVectorizer(max_features=10000, min_df=5)
+vec = TfidfVectorizer()
 train_vectors = vec.fit_transform(x_train['comment_text'].values.astype('U'))
 test_vectors = vec.transform(x_test['comment_text'].values.astype('U'))
 
 #### For each label, create NB-SVM model and predict using test data features ###
 ### into preds array ###
+saved_models = list()
 preds = np.zeros((len(x_test), len(labels)))
 for i,j in enumerate(labels):
     print('fit',j)
     m,r = get_mdl(x_train[j])
+    s = pickle.dumps(m)
+    saved_models.append(s)
     preds[:,i] = m.predict_proba(test_vectors.multiply(r))[:,1]
 
 ### Save results to CSV files ###

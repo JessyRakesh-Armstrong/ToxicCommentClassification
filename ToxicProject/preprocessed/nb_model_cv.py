@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
@@ -27,14 +28,10 @@ def get_mdl(y):
 ####Create labels and load CSV files into pandas DataFrames ###
 labels = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
 train = pd.read_csv(sys.argv[1])
-test = pd.read_csv(sys.argv[2])
-x_train = train
-x_test = test
+x_train, x_test = train_test_split(train, test_size=.3, random_state=5)
 
 ### td-idf word counts ###
-vec = TfidfVectorizer(max_features=1000, min_df=5, max_df=.9,
-                      strip_accents='unicode', smooth_idf=1,
-                      sublinear_tf=1, stop_words='english')
+vec = TfidfVectorizer()
 train_vectors = vec.fit_transform(x_train['comment_text'].values.astype('U'))
 test_vectors = vec.transform(x_test['comment_text'].values.astype('U'))
 
@@ -49,15 +46,6 @@ for i,j in enumerate(labels):
     saved_models.append(s)
     preds[:,i] = m.predict_proba(test_vectors.multiply(r))[:,1]
 
-### Save results to CSV files ###
-# preds, continuous values
-new = pd.DataFrame(data=preds, columns=['toxic','severe_toxic','obscene','threat',
-                                        'insult','identity_hate'])
-if sys.argv[1] == 'train.csv':
-    new.to_csv("preds.csv", encoding='utf-8', quoting=csv.QUOTE_NONNUMERIC, index=False)
-else:
-    new.to_csv("p_preds.csv", encoding='utf-8', quoting=csv.QUOTE_NONNUMERIC, index=False)
-
 # classified_preds, classification with threshold .5
 classified_preds = np.zeros((len(x_test), len(labels)))
 for row in range(len(preds)):
@@ -66,13 +54,7 @@ for row in range(len(preds)):
             classified_preds[row][col] = 1
         else:
             classified_preds[row][col] = 0
-new = pd.DataFrame(data=classified_preds, columns=['toxic','severe_toxic','obscene','threat',
-                                        'insult','identity_hate'])
-if sys.argv[1] == 'train.csv':
-    new.to_csv("classified_preds.csv", encoding='utf-8', quoting=csv.QUOTE_NONNUMERIC, index=False)
-else:
-    new.to_csv("p_classified_preds.csv", encoding='utf-8', quoting=csv.QUOTE_NONNUMERIC, index=False)
-    
+
 ### Accuracy outputs ###
 test_data = x_test.drop(['id','comment_text'],axis=1)
 test_data = test_data.values

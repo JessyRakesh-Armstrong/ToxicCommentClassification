@@ -1,1 +1,15 @@
-This is some text.
+In this branch (jon), the folder "ToxicProject" contains the Naive Bayes - 
+Support Vector Machine model used for the project. The folder "jessy" holds
+data and program for preprocessing of the training/test data. 
+
+Inside the "ToxicProject" folder are 3 folders: "nonpreprocessed" for running 
+the model on unpreprocessed data, "preprocessed" for preprocessed data, and 
+"Storage" files on additional preprocessing. The "preprocessing" folder contains 
+the final NB-SVM model program that uses the preprocessed training/test data.
+The program "nb_model.py" is run with the name of the training and test set as
+parameters. For example, 
+"python -i train_preprocessed.csv test_preprocessed_final.csv" runs the model
+using the given training and test set. The program outputs the continuous
+predictions in p_preds.csv and the classification predictions in
+p_classified_preds.csv, as well as printing the scores for accuracy, MSE, and
+ROC AUC.
